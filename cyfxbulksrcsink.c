@@ -401,16 +401,16 @@ CyFxBulkSrcSinkApplnStart (
      * for performance improvement. */
     dmaCfg.size *= CY_FX_DMA_SIZE_MULTIPLIER;
     dmaCfg.count = CY_FX_BULKSRCSINK_DMA_BUF_COUNT;
-    dmaCfg.prodSckId = CY_FX_EP_PRODUCER_SOCKET;
-    dmaCfg.consSckId = CY_U3P_CPU_SOCKET_CONS;
     dmaCfg.dmaMode = CY_U3P_DMA_MODE_BYTE;
-    dmaCfg.notification = CY_U3P_DMA_CB_PROD_EVENT;
     dmaCfg.cb = CyFxBulkSrcSinkDmaCallback;
     dmaCfg.prodHeader = 0;
     dmaCfg.prodFooter = 0;
     dmaCfg.consHeader = 0;
     dmaCfg.prodAvailCount = 0;
 
+    dmaCfg.notification = CY_U3P_DMA_CB_PROD_EVENT;
+    dmaCfg.prodSckId = CY_FX_EP_PRODUCER_SOCKET;
+    dmaCfg.consSckId = CY_U3P_CPU_SOCKET_CONS;
     apiRetStatus = CyU3PDmaChannelCreate (&glChHandleBulkSink,
             CY_U3P_DMA_TYPE_MANUAL_IN, &dmaCfg);
     if (apiRetStatus != CY_U3P_SUCCESS)
@@ -419,11 +419,31 @@ CyFxBulkSrcSinkApplnStart (
         CyFxAppErrorHandler(apiRetStatus);
     }
 
+    dmaCfg.prodSckId=HT1_PRODUCER_SOCKET;
+    dmaCfg.consSckId=CY_U3P_UIB_SOCKET_CONS_4;
+    apiRetStatus = CyU3PDmaChannelCreate (&glHt1Sink,
+                CY_U3P_DMA_TYPE_MANUAL_IN, &dmaCfg);
+	if (apiRetStatus != CY_U3P_SUCCESS)
+	{
+		CyU3PDebugPrint (4, "CyU3PDmaChannelCreate failed, Error code = %d\n", apiRetStatus);
+		CyFxAppErrorHandler(apiRetStatus);
+	}
+
     /* Create a DMA MANUAL_OUT channel for the consumer socket. */
     dmaCfg.notification = CY_U3P_DMA_CB_CONS_EVENT;
     dmaCfg.prodSckId = CY_U3P_CPU_SOCKET_PROD;
     dmaCfg.consSckId = CY_FX_EP_CONSUMER_SOCKET;
     apiRetStatus = CyU3PDmaChannelCreate (&glChHandleBulkSrc,
+            CY_U3P_DMA_TYPE_MANUAL_OUT, &dmaCfg);
+    if (apiRetStatus != CY_U3P_SUCCESS)
+    {
+        CyU3PDebugPrint (4, "CyU3PDmaChannelCreate failed, Error code = %d\n", apiRetStatus);
+        CyFxAppErrorHandler(apiRetStatus);
+    }
+
+    dmaCfg.prodSckId=CY_U3P_UIB_SOCKET_PROD_4;
+    dmaCfg.consSckId=HT1_CONSUMER_SOCKET;
+    apiRetStatus = CyU3PDmaChannelCreate (&glHt1Src,
             CY_U3P_DMA_TYPE_MANUAL_OUT, &dmaCfg);
     if (apiRetStatus != CY_U3P_SUCCESS)
     {
@@ -440,6 +460,20 @@ CyFxBulkSrcSinkApplnStart (
     }
 
     apiRetStatus = CyU3PDmaChannelSetXfer (&glChHandleBulkSrc, CY_FX_BULKSRCSINK_DMA_TX_SIZE);
+    if (apiRetStatus != CY_U3P_SUCCESS)
+    {
+        CyU3PDebugPrint (4, "CyU3PDmaChannelSetXfer failed, Error code = %d\n", apiRetStatus);
+        CyFxAppErrorHandler(apiRetStatus);
+    }
+
+    apiRetStatus = CyU3PDmaChannelSetXfer (&glHt1Sink, CY_FX_BULKSRCSINK_DMA_TX_SIZE);
+    if (apiRetStatus != CY_U3P_SUCCESS)
+    {
+        CyU3PDebugPrint (4, "CyU3PDmaChannelSetXfer failed, Error code = %d\n", apiRetStatus);
+        CyFxAppErrorHandler(apiRetStatus);
+    }
+
+    apiRetStatus = CyU3PDmaChannelSetXfer (&glHt1Src, CY_FX_BULKSRCSINK_DMA_TX_SIZE);
     if (apiRetStatus != CY_U3P_SUCCESS)
     {
         CyU3PDebugPrint (4, "CyU3PDmaChannelSetXfer failed, Error code = %d\n", apiRetStatus);
@@ -469,6 +503,8 @@ CyFxBulkSrcSinkApplnStop (
     /* Destroy the channels */
     CyU3PDmaChannelDestroy (&glChHandleBulkSink);
     CyU3PDmaChannelDestroy (&glChHandleBulkSrc);
+    CyU3PDmaChannelDestroy (&glHt1Sink);
+    CyU3PDmaChannelDestroy (&glHt1Src);
 
     /* Flush the endpoint memory */
     CyU3PUsbFlushEp(CY_FX_EP_PRODUCER);

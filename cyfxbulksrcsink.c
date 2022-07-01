@@ -59,6 +59,8 @@
 CyU3PThread     bulkSrcSinkAppThread;    /* Application thread structure */
 CyU3PDmaChannel glChHandleBulkSink;      /* DMA MANUAL_IN channel handle.          */
 CyU3PDmaChannel glChHandleBulkSrc;       /* DMA MANUAL_OUT channel handle.         */
+CyU3PDmaChannel glHt1Sink;      /* DMA MANUAL_IN channel handle.          */
+CyU3PDmaChannel glHt1Src;       /* DMA MANUAL_OUT channel handle.         */
 
 CyBool_t glIsApplnActive = CyFalse;      /* Whether the source sink application is active or not. */
 uint32_t glDMARxCount = 0;               /* Counter to track the number of buffers received. */
@@ -366,9 +368,25 @@ CyFxBulkSrcSinkApplnStart (
         CyFxAppErrorHandler (apiRetStatus);
     }
 
+    apiRetStatus = CyU3PSetEpConfig(HT1_PRODUCER, &epCfg);
+	if (apiRetStatus != CY_U3P_SUCCESS)
+	{
+		CyU3PDebugPrint (4, "CyU3PSetEpConfig failed, Error code = %d\n", apiRetStatus);
+		CyFxAppErrorHandler (apiRetStatus);
+	}
+
+	apiRetStatus = CyU3PSetEpConfig(HT1_CONSUMER, &epCfg);
+	if (apiRetStatus != CY_U3P_SUCCESS)
+	{
+		CyU3PDebugPrint (4, "CyU3PSetEpConfig failed, Error code = %d\n", apiRetStatus);
+		CyFxAppErrorHandler (apiRetStatus);
+	}
+
     /* Flush the endpoint memory */
     CyU3PUsbFlushEp(CY_FX_EP_PRODUCER);
     CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
+    CyU3PUsbFlushEp(HT1_PRODUCER);
+    CyU3PUsbFlushEp(HT1_CONSUMER);
 
     /* Create a DMA MANUAL_IN channel for the producer socket. */
     CyU3PMemSet ((uint8_t *)&dmaCfg, 0, sizeof (dmaCfg));
@@ -455,6 +473,8 @@ CyFxBulkSrcSinkApplnStop (
     /* Flush the endpoint memory */
     CyU3PUsbFlushEp(CY_FX_EP_PRODUCER);
     CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
+    CyU3PUsbFlushEp(HT1_PRODUCER);
+    CyU3PUsbFlushEp(HT1_CONSUMER);
 
     /* Disable endpoints. */
     CyU3PMemSet ((uint8_t *)&epCfg, 0, sizeof (epCfg));
@@ -475,6 +495,20 @@ CyFxBulkSrcSinkApplnStop (
         CyU3PDebugPrint (4, "CyU3PSetEpConfig failed, Error code = %d\n", apiRetStatus);
         CyFxAppErrorHandler (apiRetStatus);
     }
+
+    apiRetStatus = CyU3PSetEpConfig(HT1_PRODUCER, &epCfg);
+	if (apiRetStatus != CY_U3P_SUCCESS)
+	{
+		CyU3PDebugPrint (4, "CyU3PSetEpConfig failed, Error code = %d\n", apiRetStatus);
+		CyFxAppErrorHandler (apiRetStatus);
+	}
+
+	apiRetStatus = CyU3PSetEpConfig(HT1_CONSUMER, &epCfg);
+	if (apiRetStatus != CY_U3P_SUCCESS)
+	{
+		CyU3PDebugPrint (4, "CyU3PSetEpConfig failed, Error code = %d\n", apiRetStatus);
+		CyFxAppErrorHandler (apiRetStatus);
+	}
 }
 
 /* Callback to handle the USB setup requests. */
@@ -547,7 +581,7 @@ CyFxBulkSrcSinkApplnUSBSetupCB (
         {
             if (glIsApplnActive)
             {
-                if (wIndex == CY_FX_EP_PRODUCER)
+                if (wIndex == CY_FX_EP_PRODUCER )
                 {
                     CyU3PUsbSetEpNak (CY_FX_EP_PRODUCER, CyTrue);
                     CyU3PBusyWait (125);
@@ -562,6 +596,22 @@ CyFxBulkSrcSinkApplnUSBSetupCB (
                     isHandled = CyTrue;
                     CyU3PUsbAckSetup ();
                 }
+
+                if (wIndex == HT1_PRODUCER )
+				{
+					CyU3PUsbSetEpNak (HT1_PRODUCER, CyTrue);
+					CyU3PBusyWait (125);
+
+					CyU3PDmaChannelReset (&glHt1Sink);
+					CyU3PUsbFlushEp(HT1_PRODUCER);
+					CyU3PUsbResetEp (HT1_PRODUCER);
+					CyU3PUsbSetEpNak (HT1_PRODUCER, CyFalse);
+
+					CyU3PDmaChannelSetXfer (&glHt1Sink, CY_FX_BULKSRCSINK_DMA_TX_SIZE);
+					CyU3PUsbStall (wIndex, CyFalse, CyTrue);
+					isHandled = CyTrue;
+					CyU3PUsbAckSetup ();
+				}
 
                 if (wIndex == CY_FX_EP_CONSUMER)
                 {
@@ -580,6 +630,24 @@ CyFxBulkSrcSinkApplnUSBSetupCB (
 
                     CyFxBulkSrcSinkFillInBuffers ();
                 }
+
+                if (wIndex == HT1_CONSUMER)
+				{
+					CyU3PUsbSetEpNak (HT1_CONSUMER, CyTrue);
+					CyU3PBusyWait (125);
+
+					CyU3PDmaChannelReset (&glHt1Src);
+					CyU3PUsbFlushEp(HT1_CONSUMER);
+					CyU3PUsbResetEp (HT1_CONSUMER);
+					CyU3PUsbSetEpNak (HT1_CONSUMER, CyFalse);
+
+					CyU3PDmaChannelSetXfer (&glHt1Src, CY_FX_BULKSRCSINK_DMA_TX_SIZE);
+					CyU3PUsbStall (wIndex, CyFalse, CyTrue);
+					isHandled = CyTrue;
+					CyU3PUsbAckSetup ();
+
+					CyFxBulkSrcSinkFillInBuffers ();
+				}
             }
         }
     }

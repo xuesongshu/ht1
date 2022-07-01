@@ -42,9 +42,13 @@
 
 #define CY_FX_EP_PRODUCER               0x01    /* EP 1 OUT */
 #define CY_FX_EP_CONSUMER               0x81    /* EP 1 IN */
+#define HT1_PRODUCER               0x02    /* EP 1 OUT */
+#define HT1_CONSUMER               0x82    /* EP 1 IN */
 
 #define CY_FX_EP_PRODUCER_SOCKET        CY_U3P_UIB_SOCKET_PROD_1    /* Socket 1 is producer */
 #define CY_FX_EP_CONSUMER_SOCKET        CY_U3P_UIB_SOCKET_CONS_1    /* Socket 1 is consumer */
+#define HT1_PRODUCER_SOCKET        CY_U3P_UIB_SOCKET_PROD_3    /* Socket 1 is producer */
+#define HT1_CONSUMER_SOCKET        CY_U3P_UIB_SOCKET_CONS_3    /* Socket 1 is consumer */
 
 #define CY_FX_BULKSRCSINK_DMA_TX_SIZE        (0)        /* DMA transfer size is set to infinite */
 #define CY_FX_BULKSRCSINK_THREAD_STACK       (0x1000)   /* Bulk loop application thread stack size */
